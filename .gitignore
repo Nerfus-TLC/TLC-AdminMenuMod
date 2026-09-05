@@ -1,0 +1,11 @@
+# The compiled Dev Menu this mod replaces, kept locally for reference only.
+# We have no right to redistribute it, and it must never enter a public repository.
+archive/
+
+# Internal working notes. Useful while developing, noise to everyone else.
+STATUS.md
+docs/
+
+# Build output. The archives are uploaded as release assets, not committed.
+dist/
+.staging/
