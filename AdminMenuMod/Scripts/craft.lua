@@ -35,13 +35,12 @@
         craftlist            every value with its name
         craftlist bulk       only the ones matching "bulk"
 
-    craftlist is read only. craftspawn is the experiment: if the module it produces is
-    correctly initialised - a battery gauge that tells the truth, no crash - then the
-    crafter route is the right design and the GUI buttons should be rebuilt on it.
+    Both commands only read. craftdata, further down, reads the recipe array itself.
 
-    The list came back as 66 craftables. Value 2 is "Large Battery", which is the UI's
-    Bulk Battery. There is no entry for the extra large petrol or diesel tanks, so those
-    two need the recipe array in CraftingRecipesBaseData rather than the enum.
+    Results against this build: 66 enum values, 57 recipes. Value 2 is "Large Battery",
+    which is the UI's Bulk Battery, and that is the value the mod's button resolves at
+    runtime. Neither list has an extra large petrol or diesel tank, which is why the mod
+    adds only the battery. Run `craftlist bulk` after a game patch to see if that changed.
 --]]
 
 local CRAFTER_CLASS = "/Game/Blueprints/Tests/Eric/BP_Module_Crafter.BP_Module_Crafter_C"
@@ -153,13 +152,12 @@ print("[AdminMenu] craftlist registered - type 'craftlist' in the game console\n
 
 --[[ Reading the recipe list itself ---------------------------------------------------
 
-    The enum has 66 entries and none of them is an extra large petrol or diesel tank.
-    But the enum is only one way to address the recipes: the data asset holds them as
+    The enum is only one way to address the recipes: the data asset holds them as
 
         CraftingRecipesBaseData_C.Craftables : TArray<CraftableObjectStruct>
 
-    and each struct carries a Name. If that array is longer than the enum, the two
-    missing tanks are in there and reachable some other way.
+    and each struct carries a Name. The array turned out to hold 57 entries, fewer than
+    the enum, and neither bulk tank is among them. This command is what checks that.
 
     ONLY the Name field is touched. The struct also holds Item (SoftObject), Class
     (SoftClass) and StaticMesh (SoftObject), and reading any of those is what kills the

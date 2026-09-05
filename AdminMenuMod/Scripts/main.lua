@@ -23,26 +23,16 @@
       Controller:SetIgnoreMoveInput(bNewMoveInput)                -- one argument
       Controller:ResetIgnoreInputFlags()                          -- no arguments
 
-    Changelog
-      2026-09-04  First version.
-      2026-09-05  F1 did not close the menu. BP_AdminWidget_C:CloseWidget only fires the
-                  widget's own close event and does not remove it from the viewport.
-                  Fixed by calling RemoveFromParent afterwards.
-                  Mouse movement turned the character, because the widget was added
-                  without changing input mode. Fixed with UI-only input.
-      2026-09-05  Input never came back after closing and ESC was dead. Cause:
-                  SetInputMode_GameOnly was called with one argument but takes two
-                  (PC and bFlushInput). The call failed and pcall swallowed the error
-                  silently, leaving input stuck in UI mode. Every call now logs its
-                  failure instead of hiding it, and CTRL + F1 was added as a panic key.
-      2026-09-05  Added spawn.lua, a console list for storage modules the game's own
-                  admin panel does not offer. Strings translated to English.
-      2026-09-05  Real GUI buttons. inject.lua adds the three missing bulk containers
-                  to the game's own Storage Modules panel every time the menu opens.
-                  SpawnActorClass could not be used - reading or writing a
-                  SoftClassProperty from UE4SS kills the game - so the buttons carry
-                  only a label and the spawning is done from a hook on the button
-                  class's click event. See inject.lua for the full reasoning.
+    Two things in here were learned the hard way and are worth knowing before editing:
+
+      BP_AdminWidget_C:CloseWidget only fires the widget's own close event and does not
+      remove it from the viewport, so RemoveFromParent has to follow it.
+
+      SetInputMode_GameOnly takes two arguments. Called with one, it fails, and if the
+      failure is swallowed the player is left stuck in UI mode with a dead ESC key. That
+      is why every call here logs its error and why CTRL + F1 exists.
+
+    The extra button lives in inject.lua; how it gets built is in catalog.lua.
 --]]
 
 local UEHelpers = require("UEHelpers")
@@ -232,7 +222,7 @@ else
     log("loaded - F1 opens the menu, CTRL + F1 is the input panic key")
 end
 
--- Developer tool: the menuscan console command that mapped the game's menu. It is not
--- part of the release, so its absence is normal and must not stop the mod from loading.
+-- Developer tools: menuscan (menu.lua) and craftlist / craftdata (craft.lua). They are
+-- not part of the release, so their absence is normal and must not stop the mod loading.
 pcall(function() require("menu") end)
 pcall(function() require("craft") end)

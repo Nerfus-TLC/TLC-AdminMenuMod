@@ -18,7 +18,8 @@ binds one, and fills in a button the developers left out.
 
 ## Download
 
-**[Latest release](../../releases/latest)** — two archives, pick one:
+**[Latest release](https://github.com/Nerfus-TLC/TLC-AdminMenuMod/releases/latest)** — two
+archives, pick one:
 
 | | |
 |---|---|
@@ -67,16 +68,23 @@ crash the game is worse than a mod that does less, so those two are left out.
 
 ## Requirements
 
-**UE4SS**, a build that supports Unreal Engine 5.8. This mod does not bundle it - get it
-from the [RE-UE4SS releases](https://github.com/UE4SS-RE/RE-UE4SS/releases) and install
-it first. Verified against `v4.0.0-rc1` (experimental, commit `24b12662`).
+**UE4SS**, a build that supports Unreal Engine 5.8. The `-with-UE4SS` archive ships the
+official build unmodified, so with that one there is nothing more to get.
+
+With the mod-only archive, install UE4SS yourself first. Take the **experimental-latest**
+release from [RE-UE4SS releases](https://github.com/UE4SS-RE/RE-UE4SS/releases), not the
+stable release: only the experimental build knows Unreal Engine 5.8. Verified against
+commit `24b12662`, which reports itself as `v3.0.1 Beta #0` in `UE4SS.log` - the same
+version number as the old stable release, so go by the commit and the asset date, not
+the version string.
 
 Check the release **asset** date rather than the tag date when judging how current a
 build is. The tag can be years older than the file.
 
 ## Install
 
-1. Install UE4SS into the game, so that `dwmapi.dll` and `ue4ss/` sit in:
+1. Install UE4SS into the game, so that `dwmapi.dll` and `ue4ss/` sit in the folder
+   below. If you took the `-with-UE4SS` archive, extracting it there does this for you:
 
    ```
    <SteamLibrary>/steamapps/common/Voyage/Voyage/Binaries/Win64/
@@ -147,4 +155,6 @@ UE4SS reflection dump.
 
 MIT, © 2026 Nerfus. See [LICENSE](LICENSE).
 
-UE4SS is a separate project, MIT licensed, © 2022 Narknon. It is not included here.
+UE4SS is a separate project, MIT licensed, © 2022 Narknon. It is not part of this
+repository. The `-with-UE4SS` release archive redistributes the official build unmodified,
+with its licence alongside it in `ue4ss/LICENSE`.

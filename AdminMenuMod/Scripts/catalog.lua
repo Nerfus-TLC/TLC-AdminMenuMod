@@ -172,10 +172,9 @@ end
 
 --[[ Where to put the crafter ----------------------------------------------------------
 
-    GetGroundSpawnLocation gives the right spot horizontally, but its height is about
-    164 cm above the surface - measured as exactly 164 on land and on the boat deck
-    alike. The crafter builds the module where it stands and does NOT drop it, so that
-    point has to be lowered to the surface first. See onSurface above.
+    GetGroundSpawnLocation gives the right spot horizontally but sits well above the
+    surface, so the point is lowered to the height the player stands at before use. The
+    measurements and the reasoning are with playerFeetZ and onSurface below.
 
     UE4SS wants EVERY parameter passed, out parameters included, or it refuses with
     "UFunction expected 4 parameters, received 2". Hence the two placeholder structs.

@@ -340,7 +340,7 @@ end
 RegisterConsoleCommandHandler("menuscan", function(FullCommand, Parameters, Ar)
     -- Console handlers already run on the game thread. Never wrap this in
     -- ExecuteInGameThread: Ar only lives for the duration of this call, and a deferred
-    -- closure that touches it is a use after free. That is what killed spawnmod once.
+    -- closure that touches it is a use after free. That killed an earlier command once.
     local ok, err = pcall(function()
         local mode = ""
         if Parameters ~= nil and Parameters[1] ~= nil then
