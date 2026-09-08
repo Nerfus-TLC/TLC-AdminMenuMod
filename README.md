@@ -3,10 +3,8 @@
 Opens The Last Caretaker's own built-in admin menu with **F1**, and adds the Bulk Battery
 button the menu is missing.
 
-**Works on the current game version, Unreal Engine 5.8.1.** The 2026-08-31 patch moved
-the game from 5.7 to 5.8 and broke the previous admin menu mod, which was a cooked
-blueprint. This one is plain Lua and has no assets to go stale, so an engine update does
-not take it down the same way.
+**Works on the current game version, Unreal Engine 5.8.1.** The mod is plain Lua and
+ships no cooked assets, so an engine update does not take it down.
 
 The game already contains a full admin panel. It just has no key bound to it. This mod
 binds one, and fills in a button the developers left out.
@@ -40,16 +38,15 @@ Nothing to edit either way. The mod enables itself.
 
 Everything is in the menu. The mod adds no console commands.
 
-## Why it exists
+## Why Lua
 
-The previous admin menu mod was a cooked blueprint built for Unreal Engine 5.7. The
-2026-08-31 patch moved the game to 5.8.1 and it started crashing on startup. That is not
-a bug in that mod - it is what happens to cooked blueprint assets when the engine version
-moves under them.
+A mod shipped as cooked blueprint assets is tied to the engine version it was cooked for.
+When the game moves to a new engine version, as it did on 2026-08-31 from 5.7 to 5.8.1,
+those assets stop loading and the mod has to be rebuilt.
 
-This one is plain Lua. It ships no game content and no compiled assets. It asks the game
+This mod is plain Lua. It ships no game content and no compiled assets. It asks the game
 to open a widget the game already has, and to build an item the game already knows how to
-build, so an engine bump does not break it the same way.
+build, so an engine bump does not break it.
 
 ## Why only Bulk Battery
 
@@ -119,13 +116,10 @@ can simply be picked up and placed. Larger ones - Medium Battery and Bulk Batter
 them - cannot be carried at all: break them down with the **Dismantle Tool** for parts,
 then build them again from the in-game build menu.
 
-## Credits
+## If F1 is taken
 
-The idea, and the F1 convention, come from **Dmgvol's Dev Menu**. No code from it is used
-here - this is a fresh implementation in Lua against the game's own API - but it is what
-showed that the game's admin panel could be opened at all, and it deserves the credit.
-
-**Do not run both mods at once.** They both bind F1.
+If another mod has already bound F1, this mod does not take the key. `UE4SS.log` says so,
+and `TOGGLE_KEY` at the top of `main.lua` is where to pick another one.
 
 ## Reporting a problem
 

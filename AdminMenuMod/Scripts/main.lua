@@ -1,10 +1,9 @@
 --[[
     AdminMenuMod - opens The Last Caretaker's own built-in admin menu on F1.
 
-    A replacement for Dev Menu v0.5, which was a blueprint cooked for UE 5.7 and
-    crashes the game after the update to 5.8.1. This does the same job in plain Lua,
-    so it is independent of the engine version and needs no cooking. That is the whole
-    point: an engine bump breaks cooked blueprint mods, not scripts.
+    Plain Lua against the game's own API, so it needs no cooking and is independent of
+    the engine version. That is the whole point: an engine bump breaks cooked assets, not
+    scripts.
 
     The menu itself is the game's own widget. This mod ships no game content, it only
     asks the game to open something it already has.
