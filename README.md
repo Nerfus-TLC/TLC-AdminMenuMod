@@ -26,6 +26,9 @@ archives, pick one:
 
 Nothing to edit either way. The mod enables itself.
 
+Also on **[Nexus Mods](https://www.nexusmods.com/thelastcaretaker/mods/230)** - same files,
+and the place for comments, endorsements and update notifications.
+
 ## What it does
 
 * **F1** opens and closes the game's admin menu.
