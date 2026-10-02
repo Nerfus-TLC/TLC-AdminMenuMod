@@ -12,14 +12,17 @@
       F1          open / close the admin menu
       CTRL + F1   panic key: hand input back to the game whatever the state
 
+    While the menu is open the character can still walk, so things can be placed one
+    after another without closing it. The camera stays still until the menu closes.
+
     Signatures read from a JMAP dump of the running game, not guessed:
       WidgetBlueprintLibrary:Create(WorldContextObject, WidgetType, OwningPlayer)
       UserWidget:AddToViewport(ZOrder)
       Widget:RemoveFromParent()                                  -- no arguments
-      WidgetBlueprintLibrary:SetInputMode_UIOnlyEx(PC, WidgetToFocus, MouseLockMode, bFlushInput)
+      WidgetBlueprintLibrary:SetInputMode_GameAndUIEx(PC, WidgetToFocus, MouseLockMode,
+                                                      bHideCursorDuringCapture, bFlushInput)
       WidgetBlueprintLibrary:SetInputMode_GameOnly(PC, bFlushInput)   -- two arguments
       Controller:SetIgnoreLookInput(bNewLookInput)                -- one argument
-      Controller:SetIgnoreMoveInput(bNewMoveInput)                -- one argument
       Controller:ResetIgnoreInputFlags()                          -- no arguments
 
     Two things in here were learned the hard way and are worth knowing before editing:
@@ -91,16 +94,18 @@ local function findWidgetClass()
     return nil
 end
 
--- Gives mouse and keyboard to the menu and stops the game from reading the mouse.
+-- Shares input between the menu and the game: the mouse works the menu, the movement
+-- keys still walk the character, so several things can be placed in a row without
+-- closing the menu. Keys the menu does not use fall through to the game.
+-- Look input is ignored so the camera stays put while the cursor works the menu.
 local function grabInputForUI(pc, widget)
     local lib = widgetLib()
     if lib ~= nil then
-        try("SetInputMode_UIOnlyEx", function()
-            lib:SetInputMode_UIOnlyEx(pc, widget, MOUSE_LOCK_MODE, false)
+        try("SetInputMode_GameAndUIEx", function()
+            lib:SetInputMode_GameAndUIEx(pc, widget, MOUSE_LOCK_MODE, false, false)
         end)
     end
     try("SetIgnoreLookInput(true)", function() pc:SetIgnoreLookInput(true) end)
-    try("SetIgnoreMoveInput(true)", function() pc:SetIgnoreMoveInput(true) end)
     pc.bShowMouseCursor = true
 end
 

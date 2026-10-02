@@ -29,6 +29,9 @@ Nothing to edit either way. The mod enables itself.
 ## What it does
 
 * **F1** opens and closes the game's admin menu.
+* **You can walk while the menu is open.** The mouse works the menu and the movement keys
+  still move the character, so several things can be placed one after another without
+  closing the menu in between. The camera stays still until the menu closes.
 * **CTRL + F1** is a panic key. It hands input back to the game whatever state the menu
   is in, so a stuck menu never means killing the game.
 * Adds **Bulk Battery** to *Cheats → Spawn/Craft → Storage Modules*. It looks like the

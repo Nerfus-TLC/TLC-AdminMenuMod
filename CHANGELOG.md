@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 - 2026-10-02
+
+* **Walk while the menu is open.** Input is now shared between the menu and the game:
+  the mouse works the menu and the movement keys still move the character. Placing
+  several things in a row no longer means closing the menu, moving and opening it again.
+* The camera stays still while the menu is open, so moving the cursor over the menu does
+  not turn the view.
+
 ## 1.0.0 - 2026-09-05
 
 First release.
