@@ -3,8 +3,8 @@
 Opens The Last Caretaker's own built-in admin menu with **F1**, and adds the Bulk Battery
 button the menu is missing.
 
-**Works on the current game version, Unreal Engine 5.8.1.** The mod is plain Lua and
-ships no cooked assets, so an engine update does not take it down.
+**Works on Update 6 "The Jump"** (tested on build 0.8.5.653002, Unreal Engine 5.8.1).
+The mod is plain Lua and ships no cooked assets, so an engine update does not take it down.
 
 The game already contains a full admin panel. It just has no key bound to it. This mod
 binds one, and fills in a button the developers left out.
