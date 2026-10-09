@@ -47,8 +47,9 @@ local CRAFTER_CLASS = "/Game/Blueprints/Tests/Eric/BP_Module_Crafter.BP_Module_C
 local ENUM_PATH = "/Game/Blueprints/Tests/Eric/CraftableObjectList.CraftableObjectList"
 local NODE_HELPER_CDO = "/Script/Engine.Default__KismetNodeHelperLibrary"
 
--- 66 entries in the dump. A couple spare costs nothing; the names simply come back empty.
-local ENUM_COUNT = 70
+-- 66 entries in the dump before Update 6, which added heaters, a boiler, methane modules
+-- and more. Spare values cost nothing; their names simply come back empty.
+local ENUM_COUNT = 160
 
 local function out(Ar, msg)
     print("[AdminMenu] " .. msg .. "\n")
