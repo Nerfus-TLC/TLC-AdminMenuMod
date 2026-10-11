@@ -273,7 +273,9 @@ end
 local function removeOverrides()
     local removed = 0
     for _, actor in ipairs(FindAllOf(OVERRIDE_CLASS) or {}) do
-        if isValid(actor) and isLevelPlaced(actor) then
+        if isValid(actor) and fullNameOf(actor) == "?" then
+            log("  ! skipped an override whose name could not be read")
+        elseif isValid(actor) and isLevelPlaced(actor) then
             log("  skipped level placed " .. fullNameOf(actor))
         elseif isValid(actor) and not isTemplate(fullNameOf(actor)) then
             step("K2_DestroyActor " .. fullNameOf(actor))

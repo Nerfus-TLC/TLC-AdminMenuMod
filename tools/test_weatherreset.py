@@ -10,7 +10,7 @@ Requires lupa:  pip install lupa
 Usage:  python tools/test_weatherreset.py
 """
 
-# pyright: reportAttributeAccessIssue=false
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false
 
 import os
 import unittest
@@ -330,6 +330,32 @@ class WeatherResetTest(unittest.TestCase):
         ok, message = self.reset()
         self.assertTrue(ok, message)
         self.assertFalse(placed.destroyed)
+        self.assertNotIn("removed", message)
+
+    def test_each_world_criterion_stops_a_decoy(self):
+        world = self.world()
+        wide_radius_preset = self.g.make_preset("DA_WeatherPreset_Default", 30)
+        small = self.g.make_volume("WeatherVolume_C_UAID_AAAA_1", wide_radius_preset, 4.5e6, 99.0)
+        other_preset = self.g.make_preset("DA_WeatherPreset_Snow_Biome_Default", -40)
+        wrong_preset = self.g.make_volume("WeatherVolume_C_UAID_BBBB_2", other_preset, 1e10, 99.0)
+        self.register("VoyageWeatherVolume", world, small, wrong_preset)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(small.Priority, 99.0)
+        self.assertFalse(small.Modified)
+        self.assertEqual(wrong_preset.Priority, 99.0)
+        self.assertFalse(wrong_preset.Modified)
+
+    def test_override_with_unreadable_name_is_not_removed(self):
+        self.register("VoyageWeatherVolume", self.world())
+        unnamed = self.g.make_override("BP_WeatherVolumeActor_C unused")
+        self.lua.execute("function unnamed_fail(a) function a:GetFullName() error('no name') end end")
+        self.g.unnamed_fail(unnamed)
+        self.register("BP_WeatherVolumeActor_C", unnamed)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertFalse(unnamed.destroyed)
         self.assertNotIn("removed", message)
 
 
