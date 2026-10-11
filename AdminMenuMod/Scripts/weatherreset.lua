@@ -335,6 +335,37 @@ local function removeOverrides()
     return removed
 end
 
+-- The Customize widget works on the first volume the game lists, which could be a
+-- regional one in another save. Such a volume keeps the cheat preset and priority 99
+-- after the world volume is reset. It is not touched - its original preset is unknown -
+-- but it is logged, so the button does not claim full success. Returns how many.
+local function reportStrayCustomWeather(world)
+    local worldName = fullNameOf(world)
+    local count = 0
+    for _, volume in ipairs(FindAllOf(VOLUME_CLASS) or {}) do
+        local ok, err = pcall(function()
+            local full = fullNameOf(volume)
+            if not isValid(volume) or isTemplate(full) or full == worldName then
+                return
+            end
+            local owner = volume:GetOwner()
+            if not isValid(owner) or not isLevelPlaced(owner) then
+                return
+            end
+            local preset = volume.WeatherPreset
+            if isValid(preset) and shortNameOf(preset) == CHEAT_PRESET then
+                count = count + 1
+                log("  ! " .. full .. " still has the admin menu's custom weather (priority "
+                    .. tostring(volume.Priority) .. ")")
+            end
+        end)
+        if not ok then
+            log("  ! skipped a weather volume: " .. tostring(err))
+        end
+    end
+    return count
+end
+
 -- Returns ok, message. Never throws.
 function M.reset()
     local ok, done, message = pcall(function()
@@ -351,6 +382,18 @@ function M.reset()
         log("resetting " .. fullNameOf(volume))
         local resetOk, msg = resetVolume(volume, defaultPreset)
         local removed = removeOverrides()
+        local stray = reportStrayCustomWeather(volume)
+        if stray > 0 then
+            local note = string.format("%d other weather volume%s still %s the admin menu's "
+                .. "custom weather - see UE4SS.log",
+                stray, stray == 1 and "" or "s", stray == 1 and "has" or "have")
+            if resetOk then
+                msg = "world weather reset, but " .. note
+            else
+                msg = msg .. "; " .. note
+            end
+            resetOk = false
+        end
         if removed > 0 then
             msg = msg .. string.format(" (removed %d preset override%s)",
                 removed, removed == 1 and "" or "s")

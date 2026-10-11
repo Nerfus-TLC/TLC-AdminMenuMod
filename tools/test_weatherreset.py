@@ -134,6 +134,10 @@ function make_stubborn_climate_volume(owner_name, preset, radius, priority)
     return volume
 end
 
+function make_stubborn_preset_volume(owner_name, preset, radius, priority)
+    return make_unwritable(make_volume(owner_name, preset, radius, priority), "WeatherPreset")
+end
+
 function make_throwing_volume(owner_name, preset, radius, priority)
     local volume = make_volume(owner_name, preset, radius, priority)
     function volume:GetOwner() error("owner is gone") end
@@ -408,7 +412,10 @@ class WeatherResetTest(unittest.TestCase):
 
     def test_default_preset_lookup_ignores_templates(self):
         world = self.customized_world()
-        template = self.g.make_preset("Default__DA_WeatherPreset_Default", 99)
+        # Short name is exactly the default preset's, so only the isTemplate check on the
+        # full name (which contains Default__) can reject it.
+        template = self.g.make_preset("DA_WeatherPreset_Default", 99)
+        template.full_name = "VoyageWeatherPreset /Game/X.Default__Y_C:DA_WeatherPreset_Default"
         live = self.g.make_preset("DA_WeatherPreset_Default", 30)
         self.register("VoyageWeatherVolume", world)
         self.register("VoyageWeatherPreset", template, live)
@@ -430,6 +437,37 @@ class WeatherResetTest(unittest.TestCase):
         self.assertEqual(decoy.Priority, 99.0)
         self.assertFalse(decoy.Modified)
         self.assertEqual(decoy.WeatherPreset.full_name, rain.full_name)
+
+    def test_stray_cheat_preset_on_another_volume_is_reported(self):
+        world = self.world()
+        regional = self.g.make_volume("WeatherVolume_C_UAID_DDDD_4",
+                                      self.g.make_cheat_preset(), 4.5e6, 99.0)
+        self.register("VoyageWeatherVolume", world, regional)
+        ok, message = self.reset()
+        self.assertFalse(ok)
+        self.assertIn("custom weather", message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(regional.Priority, 99.0)
+        self.assertEqual(regional.WeatherPreset.full_name,
+                         "VoyageWeatherPreset /Game/Data/WeatherPresets/"
+                         "DA_WeatherPreset_Cheat_Default.DA_WeatherPreset_Cheat_Default")
+        self.assertFalse(regional.Modified)
+        lines = list(self.g.printed.values())
+        self.assertTrue(any("still has the admin menu's custom weather" in line
+                            for line in lines), lines)
+
+    def test_preset_that_will_not_take_is_reported(self):
+        world = self.g.make_stubborn_preset_volume(
+            WORLD, self.g.make_cheat_preset(), 1e10, 99.0)
+        default = self.g.make_preset("DA_WeatherPreset_Default", 30)
+        self.register("VoyageWeatherVolume", world)
+        self.register("VoyageWeatherPreset", default)
+        ok, message = self.reset()
+        self.assertFalse(ok)
+        self.assertIn("WeatherPreset", message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(world.Climate.Temperature, 30)
+        self.assertTrue(world.Modified)
 
 
 if __name__ == "__main__":
