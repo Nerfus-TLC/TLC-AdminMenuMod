@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 - 2026-10-11
+
+* **Reset Weather to Default.** A new button at the bottom of the admin menu's Weather
+  page puts the game's own weather back.
+
+  Update 6 "The Jump" made temperature part of the game: cold now hurts and slows you
+  down. The menu's Weather page changes the weather that covers the whole world, and that
+  change is saved with your game, so a snowy region can stay warm and sunny for good. The
+  button resets the world-wide weather to the game's own preset and removes any preset
+  picked in the menu this session. Save the game afterwards to keep it. The label changes
+  to "Weather reset - save to keep" so you can see it worked.
+
+  Only the world-wide default weather is touched. The game's regional weather - the snow
+  biome, wind and rain - is left alone.
+* Tested on Update 6 "The Jump" (build 0.8.5.653002).
+
 ## 1.0.1 - 2026-10-02
 
 * **Walk while the menu is open.** Input is now shared between the menu and the game:

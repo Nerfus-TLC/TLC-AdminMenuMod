@@ -1,7 +1,8 @@
 # Admin Menu Mod
 
-Opens The Last Caretaker's own built-in admin menu with **F1**, and adds the Bulk Battery
-button the menu is missing.
+Opens The Last Caretaker's own built-in admin menu with **F1**, adds the Bulk Battery
+button the menu is missing, and adds a button that puts the game's own weather back after
+the menu's Weather page has changed it.
 
 **Works on Update 6 "The Jump"** (tested on build 0.8.5.653002, Unreal Engine 5.8.1).
 The mod is plain Lua and ships no cooked assets, so an engine update does not take it down.
@@ -41,8 +42,24 @@ and the place for comments, endorsements and update notifications.
   buttons the game ships, because its appearance is copied from a neighbouring button at
   runtime, and it builds the battery through the game's own crafter - build animation,
   correct placement, correct starting charge.
+* Adds **Reset Weather to Default** at the bottom of the menu's *Weather* page. See
+  [Weather stuck after using the admin menu](#weather-stuck-after-using-the-admin-menu).
 
 Everything is in the menu. The mod adds no console commands.
+
+## Weather stuck after using the admin menu
+
+Update 6 "The Jump" made temperature part of the game: cold now hurts you and slows you
+down. The admin menu's Weather page changes the weather that covers the whole world, and
+that change is saved with your game. If you have ever tried it, a snowy region can stay
+warm and sunny for good, and the game itself has no way to undo it.
+
+**Reset Weather to Default**, at the bottom of the Weather page, does. Press it, then save
+the game. The label changes to *Weather reset - save to keep* so you can see it worked.
+
+It puts the world-wide weather back to the game's own preset and removes any preset you
+picked in the menu this session. The game's regional weather - the snow biome, wind and
+rain - is left alone.
 
 ## Why Lua
 
@@ -108,8 +125,9 @@ need touching.
 
 ## Uninstall
 
-Delete `ue4ss/Mods/AdminMenuMod`. Nothing else is modified: the mod writes no files,
-changes no settings, and touches nothing in your saves.
+Delete `ue4ss/Mods/AdminMenuMod`. Nothing else is modified: the mod writes no files and
+changes no settings. The only thing it ever changes in a save is the weather, and only
+when you press **Reset Weather to Default** - and then only back to the game's own values.
 
 ## Known behaviour
 
@@ -150,8 +168,9 @@ They are worth keeping. If a patch renames the menu panel this mod injects into,
 `craftlist bulk` is the command that says so.
 
 `tools/` also holds `luacheck.py`, which checks the Lua for syntax errors and for local
-functions used before they are declared, and `jmap.py`, which reads objects out of a
-UE4SS reflection dump.
+functions used before they are declared, `test_weatherreset.py`, which runs the weather
+reset against stand-in objects without the game, and `jmap.py`, which reads objects out
+of a UE4SS reflection dump.
 
 ## Licence
 

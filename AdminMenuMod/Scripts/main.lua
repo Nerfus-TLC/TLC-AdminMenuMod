@@ -34,7 +34,8 @@
       failure is swallowed the player is left stuck in UI mode with a dead ESC key. That
       is why every call here logs its error and why CTRL + F1 exists.
 
-    The extra button lives in inject.lua; how it gets built is in catalog.lua.
+    The extra buttons live in inject.lua. Bulk Battery is built in catalog.lua, and the
+    weather reset is in weatherreset.lua.
 --]]
 
 local UEHelpers = require("UEHelpers")

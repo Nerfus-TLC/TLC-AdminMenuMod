@@ -14,12 +14,13 @@
 
     Both use `ue4ss` as the archive root, so either one extracts to the same place.
 
-    menu.lua and craft.lua are deliberately left out. They are developer tools -
-    menuscan, which maps the game's widget tree, and craftlist/craftdata, which map
-    its craftable list. main.lua loads them with pcall, so their absence is normal
-    and stops nothing.
+    menu.lua, craft.lua, patterns.lua and weather.lua are deliberately left out. They
+    are developer tools - menuscan, which maps the game's widget tree, craftlist and
+    craftdata, which map its craftable list, patterns, and weatherscan, which lists its
+    weather volumes. main.lua loads them with pcall, so their absence is normal and
+    stops nothing.
 
-    The release has no console commands at all. Everything happens from the button.
+    The release has no console commands at all. Everything happens from the buttons.
 
     Usage:
         pwsh -File tools/build.ps1
@@ -43,7 +44,7 @@ $dist = Join-Path $root "dist"
 $staging = Join-Path $root ".staging"
 
 # The files that run on a player's machine. Everything else in Scripts/ is a tool.
-$runtime = @("main.lua", "state.lua", "inject.lua", "catalog.lua")
+$runtime = @("main.lua", "state.lua", "inject.lua", "catalog.lua", "weatherreset.lua")
 $docs = @("README.md", "LICENSE", "CHANGELOG.md")
 
 if (-not (Test-Path $source)) {
