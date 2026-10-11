@@ -126,8 +126,9 @@ need touching.
 ## Uninstall
 
 Delete `ue4ss/Mods/AdminMenuMod`. Nothing else is modified: the mod writes no files and
-changes no settings. The only thing it ever changes in a save is the weather, and only
-when you press **Reset Weather to Default** - and then only back to the game's own values.
+changes no settings. Apart from what you build with it, the only thing it changes in a
+save is the weather - only when you press **Reset Weather to Default**, and only back to
+the game's own values.
 
 ## Known behaviour
 
