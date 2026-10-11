@@ -50,16 +50,18 @@ Everything is in the menu. The mod adds no console commands.
 ## Weather stuck after using the admin menu
 
 Update 6 "The Jump" made temperature part of the game: cold now hurts you and slows you
-down. The admin menu's Weather page changes the weather that covers the whole world, and
-that change is saved with your game. If you have ever tried it, a snowy region can stay
-warm and sunny for good, and the game itself has no way to undo it.
+down. The *Customize* option on the admin menu's Weather page changes the weather that
+covers the whole world, and that change is saved with your game. If you have ever used
+it, a snowy region can stay warm and sunny for good, and the game itself has no way to
+undo it.
 
 **Reset Weather to Default**, at the bottom of the Weather page, does. Press it, then save
-the game. The label changes to *Weather reset - save to keep* so you can see it worked.
+the game. The label changes to *Weather reset - save to keep* so you can see it worked,
+and cold regions are cold again.
 
 It puts the world-wide weather back to the game's own preset and removes any preset you
-picked in the menu this session. The game's regional weather - the snow biome, wind and
-rain - is left alone.
+picked in the menu this session. Nothing else is touched: the game's regional weather -
+the snow biome and the local wind and rain zones the game spawns - is left alone.
 
 ## Why Lua
 
@@ -125,10 +127,11 @@ need touching.
 
 ## Uninstall
 
-Delete `ue4ss/Mods/AdminMenuMod`. Nothing else is modified: the mod writes no files and
-changes no settings. Apart from what you build with it, the only thing it changes in a
-save is the weather - only when you press **Reset Weather to Default**, and only back to
-the game's own values.
+Delete `ue4ss/Mods/AdminMenuMod`. The mod writes no files and changes no settings. What
+you do in the admin menu - modules you build, weather you change on the Weather page - is
+saved with your game and stays after the mod is gone. **Reset Weather to Default** only
+ever puts the weather back to the game's own values, so if you changed the weather, press
+it and save before you uninstall.
 
 ## Known behaviour
 
@@ -159,10 +162,11 @@ crash usually names the exact call that caused it.
 Four of the files under `AdminMenuMod/Scripts` are developer tools and are deliberately
 left out of them: **`menu.lua`** adds a `menuscan` command that walks the game's live
 widget tree, **`craft.lua`** adds `craftlist` and `craftdata`, which read the game's
-craftable list and recipe data, **`patterns.lua`** adds `patterns`, and **`weather.lua`**
-adds `weatherscan`, which lists every weather volume in the world with its priority,
-climate and preset, plus commands that change a volume - each previews first and only
-acts with `confirm`. `main.lua` loads them with `pcall`, so their absence is normal.
+craftable list and recipe data, **`patterns.lua`** adds `patterns`, which lists the build
+and craft patterns not yet unlocked, and **`weather.lua`** adds `weatherscan`, which lists
+every weather volume in the world with its priority, climate and preset, plus commands
+that change a volume - each previews first and only acts with `confirm`. `main.lua` loads
+them with `pcall`, so their absence is normal.
 
 They are worth keeping. If a patch renames the menu panel this mod injects into,
 `menuscan` finds the new name in a minute. If a patch makes the bulk tanks craftable,

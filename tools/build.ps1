@@ -16,9 +16,9 @@
 
     menu.lua, craft.lua, patterns.lua and weather.lua are deliberately left out. They
     are developer tools - menuscan, which maps the game's widget tree, craftlist and
-    craftdata, which map its craftable list, patterns, and weatherscan, which lists its
-    weather volumes. main.lua loads them with pcall, so their absence is normal and
-    stops nothing.
+    craftdata, which map its craftable list, patterns, which lists the patterns not yet
+    unlocked, and weatherscan, which lists its weather volumes. main.lua loads them
+    with pcall, so their absence is normal and stops nothing.
 
     The release has no console commands at all. Everything happens from the buttons.
 
@@ -32,7 +32,7 @@
 #>
 
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "1.1.0",
     [string]$UE4SS = ""
 )
 
