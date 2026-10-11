@@ -137,11 +137,12 @@ crash usually names the exact call that caused it.
 
 `tools/build.ps1` produces both release archives.
 
-Two of the files under `AdminMenuMod/Scripts` are developer tools and are deliberately
+Four of the files under `AdminMenuMod/Scripts` are developer tools and are deliberately
 left out of them: **`menu.lua`** adds a `menuscan` command that walks the game's live
-widget tree, and **`craft.lua`** adds `craftlist` and `craftdata`, which read the game's
-craftable list and recipe data. `main.lua` loads both with `pcall`, so their absence is
-normal.
+widget tree, **`craft.lua`** adds `craftlist` and `craftdata`, which read the game's
+craftable list and recipe data, **`patterns.lua`** adds `patterns`, and **`weather.lua`**
+adds `weatherscan`, which lists every weather volume in the world with its priority,
+climate and preset. `main.lua` loads them with `pcall`, so their absence is normal.
 
 They are worth keeping. If a patch renames the menu panel this mod injects into,
 `menuscan` finds the new name in a minute. If a patch makes the bulk tanks craftable,

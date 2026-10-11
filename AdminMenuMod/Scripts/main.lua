@@ -226,9 +226,10 @@ else
     log("loaded - F1 opens the menu, CTRL + F1 is the input panic key")
 end
 
--- Developer tools: menuscan (menu.lua), craftlist / craftdata (craft.lua) and patterns
--- (patterns.lua). They are
+-- Developer tools: menuscan (menu.lua), craftlist / craftdata (craft.lua), patterns
+-- (patterns.lua) and weatherscan (weather.lua). They are
 -- not part of the release, so their absence is normal and must not stop the mod loading.
 pcall(function() require("menu") end)
 pcall(function() require("craft") end)
 pcall(function() require("patterns") end)
+pcall(function() require("weather") end)
