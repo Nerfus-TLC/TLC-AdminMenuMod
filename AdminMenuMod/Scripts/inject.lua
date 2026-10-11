@@ -1,9 +1,12 @@
 --[[
-    inject.lua - puts a real button into the game's own cheat menu, under
-    Cheats -> Spawn/Craft -> Storage Modules.
+    inject.lua - puts real buttons into the game's own cheat menu:
+
+        Bulk Battery               Cheats -> Spawn/Craft -> Storage Modules
+        Reset Weather to Default   at the bottom of the Weather page
 
     This is the whole user interface. The mod has no console commands: everything it
-    does, it does from a button that looks and behaves like the game's own.
+    does, it does from buttons that look and behave like the game's own. TARGETS below
+    lists them - where each goes, what it says and what a click does.
 
     How a cheat button works (read out of the reflection dump)
     ---------------------------------------------------------
@@ -53,10 +56,10 @@
 local UEHelpers = require("UEHelpers")
 local catalog = require("catalog")
 local state = require("state")
+local weatherreset = require("weatherreset")
 
 local BUTTON_CLASS = "/Game/UI/Game/HUD/BP_VoyageCheat_Button.BP_VoyageCheat_Button_C"
 local WIDGET_LIB_CDO = "/Script/UMG.Default__WidgetBlueprintLibrary"
-local TARGET_PANEL = "Spawn_ResourceContainer_Submenu"
 
 -- The bound event the button's own Button widget calls when clicked. A real UFunction
 -- on the blueprint class, so RegisterHook can attach to it.
@@ -67,10 +70,59 @@ local M = {}
 
 local hookRegistered = false
 
--- label -> catalog entry, for the buttons this mod owns.
-local owned = {}
+--[[ The buttons this mod adds -----------------------------------------------------------
+
+    panel          the VerticalBox the button goes into
+    templatePanel  where to copy the look from, when panel holds no cheat button of its
+                   own (optional, defaults to panel)
+    label          what the button says
+    doneLabel      label after a successful click (optional)
+    failLabel      label after a failed click (optional)
+    action         function(button) -> ok, message
+
+    The menu is rebuilt from scratch on every open, so a changed label lasts until the
+    menu closes and the next open shows the normal one again.
+--]]
+local TARGETS = {}
 for _, entry in ipairs(catalog.ADDITIONS) do
-    owned[entry[1]] = entry
+    TARGETS[#TARGETS + 1] = {
+        panel = "Spawn_ResourceContainer_Submenu",
+        label = entry[1],
+        -- The button goes along because it is what knows where the ground is:
+        -- GetGroundSpawnLocation lives on it, and that is where the crafter goes.
+        action = function(button) return catalog.craft(entry, button) end,
+    }
+end
+TARGETS[#TARGETS + 1] = {
+    panel = "Weather_Submenu",
+    templatePanel = "Spawn_ResourceContainer_Submenu",
+    label = "Reset Weather to Default",
+    doneLabel = "Weather reset - save to keep",
+    failLabel = "Weather reset failed - see UE4SS.log",
+    action = function() return weatherreset.reset() end,
+}
+
+-- label -> target, for every label one of this mod's buttons can carry.
+local owned = {}
+for _, target in ipairs(TARGETS) do
+    owned[target.label] = target
+    if target.doneLabel ~= nil then
+        owned[target.doneLabel] = target
+    end
+    if target.failLabel ~= nil then
+        owned[target.failLabel] = target
+    end
+end
+
+-- Panel names in first-seen order, and the targets that go into each.
+local PANEL_ORDER = {}
+local TARGETS_BY_PANEL = {}
+for _, target in ipairs(TARGETS) do
+    if TARGETS_BY_PANEL[target.panel] == nil then
+        TARGETS_BY_PANEL[target.panel] = {}
+        PANEL_ORDER[#PANEL_ORDER + 1] = target.panel
+    end
+    table.insert(TARGETS_BY_PANEL[target.panel], target)
 end
 
 local function log(msg)
@@ -133,7 +185,9 @@ end
     A live one lives under /Engine/Transient and carries the name of the admin widget
     this mod opened, which pins it to the exact menu on screen right now.
 --]]
-local function findPanel()
+-- boxes is FindAllOf("VerticalBox"), fetched once per menu open by the caller rather
+-- than once per panel.
+local function findPanel(name, boxes)
     if not isValid(state.widget) then
         return nil
     end
@@ -143,12 +197,11 @@ local function findPanel()
     end
     local adminTag = adminFull:match("([^.]+)$")
 
-    local boxes = FindAllOf("VerticalBox") or {}
     local fallback = nil
     for _, box in ipairs(boxes) do
         local full = fullNameOf(box)
         if full ~= nil
-            and full:sub(-#TARGET_PANEL) == TARGET_PANEL
+            and full:sub(-#name) == name
             and full:find("/Engine/Transient", 1, true) ~= nil
         then
             if adminTag ~= nil and full:find(adminTag, 1, true) ~= nil then
@@ -181,6 +234,14 @@ local function alreadyInjected(panel)
     return false
 end
 
+-- Changes the label of a button already on screen. Text is what the TextBlock is bound
+-- to; SetText on the TextBlock as well makes it redraw at once rather than on the next
+-- binding pass.
+local function setLabel(button, label)
+    try("set Text", function() button.Text = label end)
+    try("ButtonText:SetText", function() button.ButtonText:SetText(FText(label)) end)
+end
+
 --[[ The click hook --------------------------------------------------------------------
 
     Registered on first use rather than at startup: the button blueprint is not loaded
@@ -209,16 +270,24 @@ local function ensureHook()
                 if label == nil then
                     return
                 end
-                local entry = owned[label]
-                if entry == nil then
+                local target = owned[label]
+                if target == nil then
                     -- One of the game's own buttons. Not ours to interfere with.
                     return
                 end
 
-                -- The button goes along because it is what knows where the ground is:
-                -- GetGroundSpawnLocation lives on it, and that is where the crafter goes.
-                local spawned, msg = catalog.craft(entry, button)
-                log((spawned and "" or "ERROR: ") .. tostring(msg))
+                local done, msg = target.action(button)
+                log((done and "" or "ERROR: ") .. tostring(msg))
+
+                local newLabel
+                if done then
+                    newLabel = target.doneLabel
+                else
+                    newLabel = target.failLabel
+                end
+                if newLabel ~= nil then
+                    setLabel(button, newLabel)
+                end
             end)
             if not handled then
                 log("ERROR in click hook: " .. tostring(err))
@@ -360,17 +429,54 @@ local function makeButton(pc, lib, cls, label, template)
     return widget
 end
 
--- Called after the admin menu has been opened and added to the viewport. The menu is
--- rebuilt from scratch on every open, so this runs every time.
-function M.apply(pc)
-    local panel = findPanel()
+-- Puts the targets that belong in one panel into it. Returns how many were added.
+local function injectPanel(pc, lib, cls, name, targets, boxes)
+    local panel = findPanel(name, boxes)
     if panel == nil then
-        log("could not find " .. TARGET_PANEL .. " - no buttons added")
-        return false
+        log("could not find " .. name .. " - no buttons added there")
+        return 0
     end
     if alreadyInjected(panel) then
-        return true
+        return 0
     end
+
+    local templatePanel = panel
+    local templateName = targets[1].templatePanel
+    if templateName ~= nil then
+        templatePanel = findPanel(templateName, boxes)
+        if templatePanel == nil then
+            log("could not find " .. templateName .. " to copy the look from - using " .. name)
+            templatePanel = panel
+        end
+    end
+
+    local template = findTemplate(templatePanel)
+    if template == nil then
+        log("no neighbour button to copy the style from - the new ones may look wrong")
+    else
+        log("copying look and behaviour from '" .. tostring(labelOf(template)) .. "'")
+    end
+
+    local added = 0
+    for _, target in ipairs(targets) do
+        local widget = makeButton(pc, lib, cls, target.label, template)
+        if widget ~= nil then
+            local slot
+            if try("AddChild " .. target.label, function() slot = panel:AddChild(widget) end) then
+                copySlot(template, slot)
+                added = added + 1
+            end
+        end
+    end
+
+    log(string.format("added %d buttons to %s", added, name))
+    return added
+end
+
+-- Called after the admin menu has been opened and added to the viewport. The menu is
+-- rebuilt from scratch on every open, so this runs every time. A panel that fails is
+-- logged and skipped; it never stops the others.
+function M.apply(pc)
     if not ensureHook() then
         log("click hook could not be registered - not adding buttons that would do nothing")
         return false
@@ -391,26 +497,16 @@ function M.apply(pc)
     -- A click must never load anything: doing so freezes the game.
     catalog.preload()
 
-    local template = findTemplate(panel)
-    if template == nil then
-        log("no neighbour button to copy the style from - the new ones may look wrong")
-    else
-        log("copying look and behaviour from '" .. tostring(labelOf(template)) .. "'")
-    end
-
+    local boxes = FindAllOf("VerticalBox") or {}
     local added = 0
-    for _, entry in ipairs(catalog.ADDITIONS) do
-        local widget = makeButton(pc, lib, cls, entry[1], template)
-        if widget ~= nil then
-            local slot
-            if try("AddChild " .. entry[1], function() slot = panel:AddChild(widget) end) then
-                copySlot(template, slot)
-                added = added + 1
-            end
+    for _, name in ipairs(PANEL_ORDER) do
+        local ok, count = pcall(injectPanel, pc, lib, cls, name, TARGETS_BY_PANEL[name], boxes)
+        if ok then
+            added = added + count
+        else
+            log("ERROR adding buttons to " .. name .. ": " .. tostring(count))
         end
     end
-
-    log(string.format("added %d buttons to %s", added, TARGET_PANEL))
     return added > 0
 end
 
