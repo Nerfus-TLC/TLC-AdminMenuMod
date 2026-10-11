@@ -245,9 +245,12 @@ local function alreadyInjected(panel)
     for i = 0, count - 1 do
         local child
         if pcall(function() child = panel:GetChildAt(i) end) and isValid(child) then
-            local label = labelOf(child)
-            if label ~= nil and owned[label] ~= nil then
-                return true
+            local full = fullNameOf(child)
+            if full ~= nil and full:sub(1, #CHEAT_BUTTON_PREFIX) == CHEAT_BUTTON_PREFIX then
+                local label = labelOf(child)
+                if label ~= nil and owned[label] ~= nil then
+                    return true
+                end
             end
         end
     end
@@ -266,10 +269,13 @@ local function setLabel(button, label)
         log("could not find KismetTextLibrary - the label on screen stays as it was")
         return
     end
+    local text
+    log("[step] Conv_StringToText")
+    if not try("Conv_StringToText", function() text = lib:Conv_StringToText(label) end) then
+        return
+    end
     log("[step] ButtonText:SetText")
-    try("ButtonText:SetText", function()
-        button.ButtonText:SetText(lib:Conv_StringToText(label))
-    end)
+    try("ButtonText:SetText", function() button.ButtonText:SetText(text) end)
 end
 
 --[[ The click hook --------------------------------------------------------------------
@@ -361,13 +367,12 @@ local function findTemplate(panel)
     for i = count - 1, 0, -1 do
         local child
         if pcall(function() child = panel:GetChildAt(i) end) and isValid(child) then
-            local label = labelOf(child)
             local full = fullNameOf(child)
-            if full ~= nil
-                and full:sub(1, #CHEAT_BUTTON_PREFIX) == CHEAT_BUTTON_PREFIX
-                and label ~= nil and label ~= "" and owned[label] == nil
-            then
-                return child
+            if full ~= nil and full:sub(1, #CHEAT_BUTTON_PREFIX) == CHEAT_BUTTON_PREFIX then
+                local label = labelOf(child)
+                if label ~= nil and label ~= "" and owned[label] == nil then
+                    return child
+                end
             end
         end
     end
