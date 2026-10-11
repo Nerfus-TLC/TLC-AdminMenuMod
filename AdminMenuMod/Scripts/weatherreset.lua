@@ -135,14 +135,35 @@ local function same(a, b)
     return type(a) == "number" and type(b) == "number" and math.abs(a - b) < 0.001
 end
 
+-- Returns true when every wanted field reads back. Otherwise false, the first field that
+-- did not, and why: what it read back, or the read error.
 local function readsBack(volume, prop, wanted)
     for field, value in pairs(wanted) do
         local ok, now = pcall(function() return volume[prop][field] end)
-        if not ok or not same(now, value) then
-            return false
+        if not ok then
+            return false, field, "read error: " .. tostring(now)
+        end
+        if not same(now, value) then
+            return false, field, "read back " .. tostring(now)
         end
     end
     return true
+end
+
+-- One compact line of a struct's values, for the log. Never throws.
+local function describeStruct(volume, prop, fields)
+    local ok, text = pcall(function()
+        local struct = volume[prop]
+        local parts = {}
+        for _, field in ipairs(fields) do
+            parts[#parts + 1] = field .. "=" .. tostring(struct[field])
+        end
+        return table.concat(parts, " ")
+    end)
+    if ok then
+        return text
+    end
+    return "unreadable (" .. tostring(text) .. ")"
 end
 
 -- Copies the named number fields of one struct property from the preset onto the
@@ -158,6 +179,7 @@ local function copyStruct(volume, preset, prop, fields)
         wanted[field] = value
     end
 
+    log("  " .. prop .. " before: " .. describeStruct(volume, prop, fields))
     step("copy " .. prop .. " field by field")
     local ok, err = pcall(function()
         local target = volume[prop]
@@ -168,24 +190,34 @@ local function copyStruct(volume, preset, prop, fields)
     if not ok then
         log("  ! field by field failed: " .. tostring(err))
     end
-    if readsBack(volume, prop, wanted) then
+    local taken, badField, detail = readsBack(volume, prop, wanted)
+    if taken then
+        log("  " .. prop .. " now: " .. describeStruct(volume, prop, fields))
         return
     end
+    log("  ! " .. prop .. " field by field did not take (" .. badField .. " " .. detail .. ")")
 
     step("copy " .. prop .. " as a whole struct")
     ok, err = pcall(function() volume[prop] = wanted end)
     if not ok then
         log("  ! whole struct failed: " .. tostring(err))
     end
-    if not readsBack(volume, prop, wanted) then
-        error(prop .. " did not take the preset values")
+    taken, badField, detail = readsBack(volume, prop, wanted)
+    if not taken then
+        error(prop .. " did not take the preset values (" .. badField .. " " .. detail .. ")")
     end
+    log("  " .. prop .. " now: " .. describeStruct(volume, prop, fields))
 end
 
 local function setNumber(volume, field, value)
-    step(field .. " -> " .. tostring(value))
+    local readOk, before = pcall(function() return volume[field] end)
+    if not readOk then
+        before = "unreadable (" .. tostring(before) .. ")"
+    end
+    step(field .. " " .. tostring(before) .. " -> " .. tostring(value))
     volume[field] = value
     local now = volume[field]
+    log("  now " .. field .. " " .. tostring(now))
     if not same(now, value) then
         error(field .. " reads back as " .. tostring(now))
     end
@@ -210,13 +242,24 @@ local function resetVolume(volume)
     attempt("Multiplier", function() setNumber(volume, "Multiplier", DEFAULT_MULTIPLIER) end)
 
     local preset = volume.WeatherPreset
-    attempt("WeatherMask", function() setNumber(volume, "WeatherMask", preset.WeatherMask) end)
+    attempt("WeatherMask", function()
+        if type(preset.WeatherMask) ~= "number" then
+            error("preset WeatherMask is not a number")
+        end
+        setNumber(volume, "WeatherMask", preset.WeatherMask)
+    end)
     attempt("Climate", function() copyStruct(volume, preset, "Climate", CLIMATE_FIELDS) end)
     attempt("Wind", function() copyStruct(volume, preset, "Wind", WIND_FIELDS) end)
 
     -- Last, so the next save writes everything above.
-    step("Modified -> true")
-    volume.Modified = true
+    attempt("Modified", function()
+        step("Modified -> true")
+        volume.Modified = true
+        local now = volume.Modified
+        if now ~= true then
+            error("Modified reads back as " .. tostring(now))
+        end
+    end)
 
     if #problems > 0 then
         return false, "weather partly reset - " .. table.concat(problems, "; ")
@@ -230,7 +273,9 @@ end
 local function removeOverrides()
     local removed = 0
     for _, actor in ipairs(FindAllOf(OVERRIDE_CLASS) or {}) do
-        if isValid(actor) and not isTemplate(fullNameOf(actor)) then
+        if isValid(actor) and isLevelPlaced(actor) then
+            log("  skipped level placed " .. fullNameOf(actor))
+        elseif isValid(actor) and not isTemplate(fullNameOf(actor)) then
             step("K2_DestroyActor " .. fullNameOf(actor))
             local ok, err = pcall(function() actor:K2_DestroyActor() end)
             if ok then

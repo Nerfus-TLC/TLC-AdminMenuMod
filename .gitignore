@@ -9,3 +9,6 @@ docs/
 # Build output. The archives are uploaded as release assets, not committed.
 dist/
 .staging/
+
+# Python bytecode from running the offline tests.
+__pycache__/

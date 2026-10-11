@@ -10,6 +10,8 @@ Requires lupa:  pip install lupa
 Usage:  python tools/test_weatherreset.py
 """
 
+# pyright: reportAttributeAccessIssue=false
+
 import os
 import unittest
 
@@ -42,7 +44,7 @@ end
 function make_preset(name, temperature)
     return object("VoyageWeatherPreset /Game/Data/WeatherPresets/" .. name .. "." .. name, {
         WeatherMask = 255,
-        Climate = { Temperature = temperature, MinTemp = 15, MaxTemp = 30, Precipitation = 0,
+        Climate = { Temperature = temperature, MinTemp = 15, MaxTemp = 34, Precipitation = 0,
                     Thunder = 1, CloudCoverage = 0.3, FogDensity = 0 },
         Wind = { Direction = 90, SpeedInKm = 12 },
     })
@@ -93,6 +95,43 @@ function make_copying_volume(owner_name, preset, radius, priority)
     return volume
 end
 
+-- One field is served from a hidden store and every write to it is ignored, the way a
+-- property that will not take a value behaves. The raw key is removed first: a key that
+-- exists in the table itself would bypass the metatable.
+local function make_unwritable(volume, field)
+    local store = { [field] = volume[field] }
+    volume[field] = nil
+    setmetatable(volume, {
+        __index = function(_, key) return store[key] end,
+        __newindex = function(t, key, value)
+            if key ~= field then rawset(t, key, value) end
+        end,
+    })
+    return volume
+end
+
+function make_stubborn_priority_volume(owner_name, preset, radius, priority)
+    return make_unwritable(make_volume(owner_name, preset, radius, priority), "Priority")
+end
+
+-- Climate reads back as a copy and the whole struct assignment is ignored too. Wind
+-- still takes the whole struct assignment.
+function make_stubborn_climate_volume(owner_name, preset, radius, priority)
+    local volume = make_copying_volume(owner_name, preset, radius, priority)
+    local meta = getmetatable(volume)
+    local inner = meta.__newindex
+    meta.__newindex = function(t, key, value)
+        if key ~= "Climate" then inner(t, key, value) end
+    end
+    return volume
+end
+
+function make_throwing_volume(owner_name, preset, radius, priority)
+    local volume = make_volume(owner_name, preset, radius, priority)
+    function volume:GetOwner() error("owner is gone") end
+    return volume
+end
+
 function make_override(full)
     local actor = object(full, {})
     function actor:K2_DestroyActor() self.destroyed = true end
@@ -111,6 +150,8 @@ class WeatherResetTest(unittest.TestCase):
         self.lua.execute('package.path = "%s/?.lua;" .. package.path'
                          % SCRIPTS.replace("\\", "/"))
         self.g = self.lua.globals()
+        # The parentheses cut the call to one value; a cached require returns only one.
+        self.module = self.lua.eval('(require("weatherreset"))')
 
     def world(self, owner=WORLD, factory="make_volume"):
         preset = self.g.make_preset("DA_WeatherPreset_Default", 30)
@@ -124,7 +165,7 @@ class WeatherResetTest(unittest.TestCase):
         self.g.registry[cls] = self.lua.table(*objects)
 
     def reset(self):
-        return self.lua.require("weatherreset")[0].reset()
+        return self.module.reset()
 
     def test_resets_world_volume_to_its_preset(self):
         world = self.world()
@@ -135,7 +176,7 @@ class WeatherResetTest(unittest.TestCase):
         self.assertEqual(world.Multiplier, 1.0)
         self.assertEqual(world.WeatherMask, 255)
         self.assertEqual(world.Climate.Temperature, 30)
-        self.assertEqual(world.Climate.MaxTemp, 30)
+        self.assertEqual(world.Climate.MaxTemp, 34)
         self.assertEqual(world.Climate.Precipitation, 0)
         self.assertEqual(world.Climate.FogDensity, 0)
         self.assertEqual(world.Wind.Direction, 90)
@@ -220,6 +261,76 @@ class WeatherResetTest(unittest.TestCase):
         self.assertIn("Climate", message)
         self.assertEqual(world.Priority, -1.0)
         self.assertTrue(world.Modified)
+        # Validation comes before writing, so Climate is untouched. Wind is a separate
+        # attempt and still goes through.
+        self.assertEqual(world.Climate.Temperature, 5)
+        self.assertEqual(world.Wind.SpeedInKm, 12)
+
+    def test_priority_that_will_not_take_aborts(self):
+        world = self.world(factory="make_stubborn_priority_volume")
+        self.register("VoyageWeatherVolume", world)
+        ok, message = self.reset()
+        self.assertFalse(ok)
+        self.assertIn("could not set the weather priority", message)
+        self.assertFalse(world.Modified)
+        self.assertEqual(world.Multiplier, 0)
+        self.assertEqual(world.Climate.Temperature, 5)
+
+    def test_struct_that_will_not_take_is_reported(self):
+        world = self.world(factory="make_stubborn_climate_volume")
+        self.register("VoyageWeatherVolume", world)
+        ok, message = self.reset()
+        self.assertFalse(ok)
+        self.assertIn("Climate", message)
+        self.assertIn("did not take", message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertTrue(world.Modified)
+        self.assertEqual(world.Wind.SpeedInKm, 12)
+
+    def test_second_press_gives_same_result(self):
+        world = self.world()
+        self.register("VoyageWeatherVolume", world)
+        first_ok, first_message = self.reset()
+        second_ok, second_message = self.reset()
+        self.assertTrue(first_ok, first_message)
+        self.assertTrue(second_ok, second_message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(world.Multiplier, 1.0)
+        self.assertEqual(world.Climate.Temperature, 30)
+        self.assertTrue(world.Modified)
+
+    def test_volume_that_throws_is_skipped(self):
+        broken = self.world(owner="WeatherVolume_C_UAID_BAD_1",
+                            factory="make_throwing_volume")
+        world = self.world()
+        self.register("VoyageWeatherVolume", broken, world)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(broken.Priority, 99.0)
+        lines = list(self.g.printed.values())
+        self.assertTrue(any("skipped a weather volume" in line for line in lines), lines)
+
+    def test_mask_that_is_not_a_number_is_reported(self):
+        world = self.world()
+        world.WeatherPreset.WeatherMask = "x"
+        self.register("VoyageWeatherVolume", world)
+        ok, message = self.reset()
+        self.assertFalse(ok)
+        self.assertIn("WeatherMask", message)
+        self.assertEqual(world.WeatherMask, 7)
+        self.assertEqual(world.Priority, -1.0)
+
+    def test_level_placed_override_is_not_removed(self):
+        self.register("VoyageWeatherVolume", self.world())
+        placed = self.g.make_override(
+            "BP_WeatherVolumeActor_C /Game/Maps/VoyageWorld2.VoyageWorld2:"
+            "PersistentLevel.BP_WeatherVolumeActor_C_UAID_005056C00001181501_1")
+        self.register("BP_WeatherVolumeActor_C", placed)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertFalse(placed.destroyed)
+        self.assertNotIn("removed", message)
 
 
 if __name__ == "__main__":
