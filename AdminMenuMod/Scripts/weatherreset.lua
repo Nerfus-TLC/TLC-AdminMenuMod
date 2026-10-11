@@ -4,10 +4,10 @@
 
     Why this exists
     ---------------
-    The game's admin menu has a Weather page. Its customize option works on the one
-    weather volume that covers the whole world, and raises its priority to 99. That
-    volume is saved with the game, so the override outlives the menu. Since Update 6
-    "The Jump" made temperature matter, that is a real problem: a world wide 30 C at
+    The game's admin menu has a Weather page. Its customize option works on the first
+    weather volume the game lists - in the tested save that is the one that covers the
+    whole world - and raises its priority to 99. That volume is saved with the game, so
+    the override outlives the menu. Since Update 6 "The Jump" made temperature matter, that is a real problem: a world wide 30 C at
     priority 99 beats the snow biome (priority 1, -40 C), and the cold regions stay warm
     for good. The game has no button to undo it.
 
@@ -37,7 +37,19 @@
         Modified     true, last: the flag that gets the values written to the save
     Then it removes the menu's preset override actors (BP_WeatherVolumeActor_C). Those
     are plain actors without a persistence component; they live for the session only
-    and are never saved.
+    and are never saved. UE4SS IsValid stays true for a destroyed actor until garbage
+    collection, so removeOverrides asks the engine (KismetSystemLibrary.IsValid): actors
+    it already calls invalid are skipped, and an actor counts as removed only if the
+    engine calls it invalid after K2_DestroyActor. If that library cannot be found, it
+    falls back to the UE4SS check.
+
+    Last, the stray report: any other level placed volume that still holds
+    DA_WeatherPreset_Cheat_Default is logged and left untouched (its original preset is
+    unknown), and makes the result false.
+
+    If Priority will not take, the volume writes stop, but the session overrides are
+    still removed and strays still reported. Both are harmless: overrides are session
+    only, and the stray report only reads.
 
     It never calls WeatherVolumeActor_C:ForceUpdate - on this volume that runs the
     weather curve and drops Multiplier to 0. It touches no other volume, and it loads
@@ -312,23 +324,49 @@ local function resetVolume(volume, defaultPreset)
     return true, "world weather is back to the game's default - save the game to keep it"
 end
 
+-- The engine's own validity check. UE4SS IsValid stays true for an actor that has been
+-- destroyed (pending kill) until garbage collection; KismetSystemLibrary.IsValid does
+-- not. StaticFindObject only looks up a default object that is already loaded, so it is
+-- safe in a click. Returns nil when it cannot be found.
+local function findSystemLibrary()
+    local ok, lib = pcall(StaticFindObject, "/Script/Engine.Default__KismetSystemLibrary")
+    if ok and lib ~= nil then
+        return lib
+    end
+    return nil
+end
+
 -- The admin menu's preset buttons put a BP_WeatherVolumeActor_C in the world. It has no
 -- persistence component, so it only lives until the game is closed - but until then it
--- keeps overriding the weather.
+-- keeps overriding the weather. Only actors the engine really removed are counted.
 local function removeOverrides()
+    local lib = findSystemLibrary()
+    if lib == nil then
+        log("  ! engine IsValid not found, falling back to the UE4SS check")
+    end
+    local function engineValid(actor)
+        if lib == nil then
+            return true
+        end
+        local ok, res = pcall(function() return lib:IsValid(actor) end)
+        return not ok or res == true
+    end
+
     local removed = 0
     for _, actor in ipairs(FindAllOf(OVERRIDE_CLASS) or {}) do
         if isValid(actor) and fullNameOf(actor) == "?" then
             log("  ! skipped an override whose name could not be read")
         elseif isValid(actor) and isLevelPlaced(actor) then
             log("  skipped level placed " .. fullNameOf(actor))
-        elseif isValid(actor) and not isTemplate(fullNameOf(actor)) then
+        elseif isValid(actor) and not isTemplate(fullNameOf(actor)) and engineValid(actor) then
             step("K2_DestroyActor " .. fullNameOf(actor))
             local ok, err = pcall(function() actor:K2_DestroyActor() end)
-            if ok then
-                removed = removed + 1
-            else
+            if not ok then
                 log("  ! could not remove " .. fullNameOf(actor) .. ": " .. tostring(err))
+            elseif lib ~= nil and engineValid(actor) then
+                log("  ! " .. shortNameOf(actor) .. " is still alive after K2_DestroyActor")
+            else
+                removed = removed + 1
             end
         end
     end
