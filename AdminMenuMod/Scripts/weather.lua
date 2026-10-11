@@ -34,8 +34,8 @@
         weatherprio N V [confirm]          shorthand for weatherset N priority V
         weatherkill N            preview: destroy the actor that owns volume N
         weatherkill N confirm    do it - refused for level placed actors
-        weatherunmod N           preview: clear Modified on volume N and copy the
-                                 climate, wind and mask back from its preset
+        weatherunmod N           preview: copy the climate, wind and mask back from
+                                 its preset (and mark it Modified)
         weatherunmod N confirm   do it
 
     The numbers come from the last weatherscan. Save the game afterwards for a change
@@ -321,8 +321,12 @@ RegisterConsoleCommandHandler("weatherkill", function(FullCommand, Parameters, A
         end
         -- Destroying a level placed actor would be stored as destroyed in the save and
         -- take a piece of the map's weather with it for good. Only runtime spawns go.
+        if shortNameOf(owner) == "?" then
+            out(Ar, "refused: could not read the owner's name - not destroying anything")
+            return
+        end
         if isLevelPlaced(owner) then
-            out(Ar, "refused: " .. shortNameOf(owner) .. " is level placed - use weatherunmod")
+            out(Ar, "refused: " .. shortNameOf(owner) .. " is level placed - use weatherset or weatherunmod")
             return
         end
         if not confirmed(Parameters) then
@@ -364,11 +368,13 @@ RegisterConsoleCommandHandler("weatherunmod", function(FullCommand, Parameters, 
         local hasPreset = isValid(preset)
 
         if not confirmed(Parameters) then
-            out(Ar, "preview: would set Modified = false on " .. fullNameOf(volume))
             if hasPreset then
-                out(Ar, "and copy climate, wind and mask back from " .. shortNameOf(preset))
+                out(Ar, "preview: would copy climate, wind and mask back from " ..
+                    shortNameOf(preset) .. " and mark " .. fullNameOf(volume) ..
+                    " Modified so the values are saved")
             else
-                out(Ar, "it has no preset, so the climate is left as it is")
+                out(Ar, "preview: it has no preset, so the climate is left as it is; would mark " ..
+                    fullNameOf(volume) .. " Modified so the values are saved")
             end
             out(Ar, "run 'weatherunmod " .. Parameters[1] .. " confirm' to do it")
             return
@@ -391,7 +397,7 @@ RegisterConsoleCommandHandler("weatherunmod", function(FullCommand, Parameters, 
                 volume.WeatherMask = mask
             end
         end
-        volume.Modified = false
+        volume.Modified = true
 
         local climate = read(Ar, "Climate", function() return volume.Climate end)
         out(Ar, "  now climate " .. climateText(Ar, climate))
@@ -424,10 +430,10 @@ end)
     Do NOT call WeatherVolumeActor_C:ForceUpdate here. The first version did, and on
     this non-dynamic volume it dropped Multiplier from 1.0 to 0.0 - it runs the
     weather curve, and a volume without one comes out at zero. It also set Modified
-    to true. Modified looks like the "changed, write me to the save" flag: the 99
-    survived reloads although the scan showed Modified false, so the flag is not
-    stored, only the values it lets through. weatherset therefore sets it to true
-    itself, so the new value is written on the next save.
+    to true. The 99 survived reloads although the scan showed Modified false. After
+    weatherset set it to true, a save and reload showed priority -1.0 with Modified
+    true, so the flag is stored too. What it controls is unknown. weatherset sets it
+    to true alongside the new value, and that has held across a reload.
 --]]
 local SETTABLE = { priority = "Priority", multiplier = "Multiplier" }
 

@@ -142,7 +142,8 @@ left out of them: **`menu.lua`** adds a `menuscan` command that walks the game's
 widget tree, **`craft.lua`** adds `craftlist` and `craftdata`, which read the game's
 craftable list and recipe data, **`patterns.lua`** adds `patterns`, and **`weather.lua`**
 adds `weatherscan`, which lists every weather volume in the world with its priority,
-climate and preset. `main.lua` loads them with `pcall`, so their absence is normal.
+climate and preset, plus commands that change a volume - each previews first and only
+acts with `confirm`. `main.lua` loads them with `pcall`, so their absence is normal.
 
 They are worth keeping. If a patch renames the menu panel this mod injects into,
 `menuscan` finds the new name in a minute. If a patch makes the bulk tanks craftable,
