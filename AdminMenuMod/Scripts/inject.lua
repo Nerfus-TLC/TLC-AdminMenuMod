@@ -12,11 +12,13 @@
     ---------------------------------------------------------
     BP_VoyageCheat_Button_C has:
         Text              StrProperty      the label
-        ButtonText        TextBlock        UMG-bound to Text, so setting Text is enough
+        ButtonText        TextBlock        UMG-bound to Text: setting Text is enough before
+                                           the button is first drawn, but a button already
+                                           on screen needs SetText on this TextBlock
         SpawnActorClass   SoftClassProperty  what it spawns
         Craftables, Items, Buildable, Unique, Enabled, Style
 
-    The label is trivial to set. SpawnActorClass is not, and that is the whole design
+    The label is easy to set. SpawnActorClass is not, and that is the whole design
     problem here:
 
         UE4SS CANNOT TOUCH SoftClassProperty IN THIS BUILD.
@@ -56,10 +58,23 @@
 local UEHelpers = require("UEHelpers")
 local catalog = require("catalog")
 local state = require("state")
-local weatherreset = require("weatherreset")
+
+local function log(msg)
+    print("[AdminMenu] " .. msg .. "\n")
+end
+
+-- The weather module is optional: if it is missing or broken, the menu and the Bulk
+-- Battery button must still work, so the failure is logged and the target left out.
+local weatherOk, weatherreset = pcall(require, "weatherreset")
+if not weatherOk then
+    log("weather reset unavailable: " .. tostring(weatherreset))
+    weatherreset = nil
+end
 
 local BUTTON_CLASS = "/Game/UI/Game/HUD/BP_VoyageCheat_Button.BP_VoyageCheat_Button_C"
 local WIDGET_LIB_CDO = "/Script/UMG.Default__WidgetBlueprintLibrary"
+local TEXT_LIB_CDO = "/Script/Engine.Default__KismetTextLibrary"
+local CHEAT_BUTTON_PREFIX = "BP_VoyageCheat_Button_C "
 
 -- The bound event the button's own Button widget calls when clicked. A real UFunction
 -- on the blueprint class, so RegisterHook can attach to it.
@@ -74,7 +89,8 @@ local hookRegistered = false
 
     panel          the VerticalBox the button goes into
     templatePanel  where to copy the look from, when panel holds no cheat button of its
-                   own (optional, defaults to panel)
+                   own (optional, defaults to panel). Read from the first target of
+                   each panel; later targets in the same panel should not differ.
     label          what the button says
     doneLabel      label after a successful click (optional)
     failLabel      label after a failed click (optional)
@@ -93,14 +109,16 @@ for _, entry in ipairs(catalog.ADDITIONS) do
         action = function(button) return catalog.craft(entry, button) end,
     }
 end
-TARGETS[#TARGETS + 1] = {
-    panel = "Weather_Submenu",
-    templatePanel = "Spawn_ResourceContainer_Submenu",
-    label = "Reset Weather to Default",
-    doneLabel = "Weather reset - save to keep",
-    failLabel = "Weather reset failed - see UE4SS.log",
-    action = function() return weatherreset.reset() end,
-}
+if weatherreset ~= nil then
+    TARGETS[#TARGETS + 1] = {
+        panel = "Weather_Submenu",
+        templatePanel = "Spawn_ResourceContainer_Submenu",
+        label = "Reset Weather to Default",
+        doneLabel = "Weather reset - save to keep",
+        failLabel = "Weather reset failed - see UE4SS.log",
+        action = function() return weatherreset.reset() end,
+    }
+end
 
 -- label -> target, for every label one of this mod's buttons can carry.
 local owned = {}
@@ -122,11 +140,12 @@ for _, target in ipairs(TARGETS) do
         TARGETS_BY_PANEL[target.panel] = {}
         PANEL_ORDER[#PANEL_ORDER + 1] = target.panel
     end
-    table.insert(TARGETS_BY_PANEL[target.panel], target)
-end
-
-local function log(msg)
-    print("[AdminMenu] " .. msg .. "\n")
+    local group = TARGETS_BY_PANEL[target.panel]
+    if group[1] ~= nil and group[1].templatePanel ~= target.templatePanel then
+        log("targets in " .. target.panel .. " disagree on templatePanel - using " ..
+            tostring(group[1].templatePanel))
+    end
+    table.insert(group, target)
 end
 
 local function try(what, fn)
@@ -200,8 +219,9 @@ local function findPanel(name, boxes)
     local fallback = nil
     for _, box in ipairs(boxes) do
         local full = fullNameOf(box)
+        local tail = full ~= nil and full:sub(-(#name + 1)) or nil
         if full ~= nil
-            and full:sub(-#name) == name
+            and (tail == "." .. name or tail == ":" .. name)
             and full:find("/Engine/Transient", 1, true) ~= nil
         then
             if adminTag ~= nil and full:find(adminTag, 1, true) ~= nil then
@@ -211,7 +231,7 @@ local function findPanel(name, boxes)
         end
     end
     if fallback ~= nil then
-        log("panel found, but not inside the menu that is open - using it anyway")
+        log("panel " .. name .. " found, but not inside the menu that is open - using it anyway")
     end
     return fallback
 end
@@ -234,12 +254,22 @@ local function alreadyInjected(panel)
     return false
 end
 
--- Changes the label of a button already on screen. Text is what the TextBlock is bound
--- to; SetText on the TextBlock as well makes it redraw at once rather than on the next
--- binding pass.
+-- Changes the label of a button already on screen. Setting Text is enough before the
+-- button is first drawn (makeButton), but once it is on screen the TextBlock does not
+-- follow: the button's own graph pushes the text with Conv_StringToText and SetText, so
+-- this does the same. Text is still set because the click hook identifies buttons by it.
 local function setLabel(button, label)
     try("set Text", function() button.Text = label end)
-    try("ButtonText:SetText", function() button.ButtonText:SetText(FText(label)) end)
+
+    local lib = StaticFindObject(TEXT_LIB_CDO)
+    if not isValid(lib) then
+        log("could not find KismetTextLibrary - the label on screen stays as it was")
+        return
+    end
+    log("[step] ButtonText:SetText")
+    try("ButtonText:SetText", function()
+        button.ButtonText:SetText(lib:Conv_StringToText(label))
+    end)
 end
 
 --[[ The click hook --------------------------------------------------------------------
@@ -276,7 +306,11 @@ local function ensureHook()
                     return
                 end
 
-                local done, msg = target.action(button)
+                local ran, done, msg = pcall(target.action, button)
+                if not ran then
+                    -- The action threw: done holds the error. Still show the fail label.
+                    done, msg = false, done
+                end
                 log((done and "" or "ERROR: ") .. tostring(msg))
 
                 local newLabel
@@ -317,7 +351,8 @@ end
 --]]
 local COPY_FIELDS = { "Enabled", "Buildable", "Unique", "InventoryType", "Style", "Craftables" }
 
--- A button already in the panel, to copy the look from. Skips this mod's own buttons.
+-- A real cheat button already in the panel, to copy the look from. Skips this mod's own
+-- buttons and anything that is not a BP_VoyageCheat_Button_C.
 local function findTemplate(panel)
     local count = 0
     if not pcall(function() count = panel:GetChildrenCount() end) then
@@ -327,7 +362,11 @@ local function findTemplate(panel)
         local child
         if pcall(function() child = panel:GetChildAt(i) end) and isValid(child) then
             local label = labelOf(child)
-            if label ~= nil and label ~= "" and owned[label] == nil then
+            local full = fullNameOf(child)
+            if full ~= nil
+                and full:sub(1, #CHEAT_BUTTON_PREFIX) == CHEAT_BUTTON_PREFIX
+                and label ~= nil and label ~= "" and owned[label] == nil
+            then
                 return child
             end
         end
@@ -437,6 +476,7 @@ local function injectPanel(pc, lib, cls, name, targets, boxes)
         return 0
     end
     if alreadyInjected(panel) then
+        log(name .. " already has the buttons - skipped")
         return 0
     end
 
