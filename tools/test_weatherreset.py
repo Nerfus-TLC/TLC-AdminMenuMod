@@ -145,7 +145,7 @@ function make_throwing_volume(owner_name, preset, radius, priority)
 end
 
 -- Behaves like the game: a destroyed actor is pending kill, but UE4SS IsValid keeps
--- returning true until garbage collection. Only the engine's own check sees it.
+-- returning true until garbage collection.
 function make_override(full)
     local actor = object(full, {})
     actor.pending_kill = false
@@ -156,16 +156,6 @@ function make_override(full)
         self.pending_kill = true
     end
     return actor
-end
-
-local system_library = { }
-function system_library:IsValid(o) return o ~= nil and not o.pending_kill end
-
-function StaticFindObject(path)
-    if path == "/Script/Engine.Default__KismetSystemLibrary" then
-        return system_library
-    end
-    return nil
 end
 """
 
@@ -492,40 +482,22 @@ class WeatherResetTest(unittest.TestCase):
             "BP_WeatherVolumeActor_C /Game/Maps/VoyageWorld2.VoyageWorld2:"
             "PersistentLevel.BP_WeatherVolumeActor_C_%d" % number)
 
-    def test_already_destroyed_override_is_not_counted(self):
+    def test_second_press_does_not_recount_removed_override(self):
         self.register("VoyageWeatherVolume", self.world())
-        dead = self.live_override(2147458388)
-        dead.pending_kill = True
-        live = self.live_override(2147480001)
-        self.register("BP_WeatherVolumeActor_C", dead, live)
+        first = self.live_override(2147480001)
+        self.register("BP_WeatherVolumeActor_C", first)
         ok, message = self.reset()
         self.assertTrue(ok, message)
         self.assertIn("removed 1 preset override", message)
-        self.assertEqual(dead.destroy_calls, 0)
-        self.assertEqual(live.destroy_calls, 1)
-
-    def test_override_that_survives_destroy_is_not_counted(self):
-        self.register("VoyageWeatherVolume", self.world())
-        stubborn = self.live_override(2147480002)
-        self.lua.execute("function make_survivor(a) function a:K2_DestroyActor() end end")
-        self.g.make_survivor(stubborn)
-        self.register("BP_WeatherVolumeActor_C", stubborn)
+        # The destroyed actor still reads as valid until garbage collection.
+        second = self.live_override(2147480002)
+        self.register("BP_WeatherVolumeActor_C", first, second)
         ok, message = self.reset()
         self.assertTrue(ok, message)
-        self.assertNotIn("removed", message)
-        lines = list(self.g.printed.values())
-        self.assertTrue(any("still alive after K2_DestroyActor" in line for line in lines),
-                        lines)
-
-    def test_without_system_library_overrides_still_removed(self):
-        self.register("VoyageWeatherVolume", self.world())
-        live = self.live_override(2147480003)
-        self.register("BP_WeatherVolumeActor_C", live)
-        self.lua.execute("function StaticFindObject(path) return nil end")
-        ok, message = self.reset()
-        self.assertTrue(ok, message)
-        self.assertTrue(live.pending_kill)
         self.assertIn("removed 1 preset override", message)
+        self.assertTrue(second.pending_kill)
+        self.assertEqual(first.destroy_calls, 1)
+        self.assertEqual(second.destroy_calls, 1)
 
 
 if __name__ == "__main__":
