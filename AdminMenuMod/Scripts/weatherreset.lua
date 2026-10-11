@@ -21,12 +21,19 @@
 
     What reset() does
     -----------------
-    Finds the world volume - level placed, preset DA_WeatherPreset_Default, radius above
-    1e8, and exactly one of them - and sets:
+    Ticking Customize on the Weather page swaps the volume's preset to
+    DA_WeatherPreset_Cheat_Default and sets priority 99. Unticking it restores the preset
+    but leaves 99. reset() handles both states.
+
+    It finds the world volume - level placed, preset DA_WeatherPreset_Default or
+    DA_WeatherPreset_Cheat_Default, radius above 1e8, and exactly one of them. It looks up
+    the game's already loaded default preset first (and changes nothing if it is missing),
+    then sets:
         Priority     -1   the admin menu's own DefaultPriority, below every regional
                           volume (those run from 0.1 to 2)
         Multiplier    1
-        WeatherMask, Climate and Wind copied from its preset
+        WeatherPreset the default preset object, if the volume has another one
+        WeatherMask, Climate and Wind copied from the default preset
         Modified     true, last: the flag that gets the values written to the save
     Then it removes the menu's preset override actors (BP_WeatherVolumeActor_C). Those
     are plain actors without a persistence component; they live for the session only
@@ -44,6 +51,8 @@ local M = {}
 local VOLUME_CLASS = "VoyageWeatherVolume"
 local OVERRIDE_CLASS = "BP_WeatherVolumeActor_C"
 local DEFAULT_PRESET = "DA_WeatherPreset_Default"
+local CHEAT_PRESET = "DA_WeatherPreset_Cheat_Default"
+local PRESET_CLASS = "VoyageWeatherPreset"
 local WORLD_RADIUS = 1e8
 local DEFAULT_PRIORITY = -1.0
 local DEFAULT_MULTIPLIER = 1.0
@@ -105,7 +114,11 @@ local function isWorldVolume(volume)
         return false
     end
     local preset = volume.WeatherPreset
-    if not isValid(preset) or shortNameOf(preset) ~= DEFAULT_PRESET then
+    if not isValid(preset) then
+        return false
+    end
+    local presetName = shortNameOf(preset)
+    if presetName ~= DEFAULT_PRESET and presetName ~= CHEAT_PRESET then
         return false
     end
     local radius = volume.Radius
@@ -223,7 +236,24 @@ local function setNumber(volume, field, value)
     end
 end
 
-local function resetVolume(volume)
+-- The game's default preset object: the volume's own when it still has it, otherwise a
+-- loaded one found by name. FindAllOf only looks up objects that are already alive.
+-- Returns nil when there is none.
+local function findDefaultPreset(volume)
+    local current = volume.WeatherPreset
+    if isValid(current) and shortNameOf(current) == DEFAULT_PRESET then
+        return current
+    end
+    for _, preset in ipairs(FindAllOf(PRESET_CLASS) or {}) do
+        if isValid(preset) and not isTemplate(fullNameOf(preset))
+            and shortNameOf(preset) == DEFAULT_PRESET then
+            return preset
+        end
+    end
+    return nil
+end
+
+local function resetVolume(volume, defaultPreset)
     local problems = {}
     local function attempt(what, fn)
         local ok, err = pcall(fn)
@@ -241,7 +271,22 @@ local function resetVolume(volume)
     end
     attempt("Multiplier", function() setNumber(volume, "Multiplier", DEFAULT_MULTIPLIER) end)
 
-    local preset = volume.WeatherPreset
+    -- Customize swaps the preset object; put the default one back, then copy from it.
+    attempt("WeatherPreset", function()
+        local current = volume.WeatherPreset
+        if isValid(current) and shortNameOf(current) == DEFAULT_PRESET then
+            return
+        end
+        step("WeatherPreset " .. (isValid(current) and shortNameOf(current) or "?")
+            .. " -> " .. DEFAULT_PRESET)
+        volume.WeatherPreset = defaultPreset
+        local now = volume.WeatherPreset
+        if not isValid(now) or shortNameOf(now) ~= DEFAULT_PRESET then
+            error("WeatherPreset reads back as " .. (isValid(now) and shortNameOf(now) or "?"))
+        end
+    end)
+
+    local preset = defaultPreset
     attempt("WeatherMask", function()
         if type(preset.WeatherMask) ~= "number" then
             error("preset WeatherMask is not a number")
@@ -297,8 +342,14 @@ function M.reset()
         if volume == nil then
             return false, why
         end
+        local defaultPreset = findDefaultPreset(volume)
+        if defaultPreset == nil then
+            return false, "could not find the game's default weather preset - untick "
+                .. "Customize on the Weather page, then press again"
+        end
+        log("default preset " .. fullNameOf(defaultPreset))
         log("resetting " .. fullNameOf(volume))
-        local resetOk, msg = resetVolume(volume)
+        local resetOk, msg = resetVolume(volume, defaultPreset)
         local removed = removeOverrides()
         if removed > 0 then
             msg = msg .. string.format(" (removed %d preset override%s)",

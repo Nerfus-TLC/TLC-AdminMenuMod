@@ -50,6 +50,14 @@ function make_preset(name, temperature)
     })
 end
 
+function make_cheat_preset()
+    local p = make_preset("DA_WeatherPreset_Cheat_Default", 30.3)
+    p.Climate = { Temperature = 30.3, MinTemp = -100, MaxTemp = 100, Precipitation = 71.5,
+                  Thunder = 66.1, CloudCoverage = 0.6, FogDensity = 0 }
+    p.Wind = { Direction = 10, SpeedInKm = 55 }
+    return p
+end
+
 function make_volume(owner_name, preset, radius, priority)
     local level = "/Game/Maps/VoyageWorld2.VoyageWorld2:PersistentLevel."
     local owner = object("WeatherVolumeActor_C " .. level .. owner_name, {})
@@ -357,6 +365,71 @@ class WeatherResetTest(unittest.TestCase):
         self.assertTrue(ok, message)
         self.assertFalse(unnamed.destroyed)
         self.assertNotIn("removed", message)
+
+    def customized_world(self):
+        world = self.g.make_volume(WORLD, self.g.make_cheat_preset(), 1e10, 99.0)
+        world.Climate.Temperature = -100
+        return world
+
+    def test_customize_preset_is_restored_to_default(self):
+        world = self.customized_world()
+        default = self.g.make_preset("DA_WeatherPreset_Default", 30)
+        self.register("VoyageWeatherVolume", world)
+        self.register("VoyageWeatherPreset", self.g.make_cheat_preset(), default)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertEqual(world.WeatherPreset.full_name, default.full_name)
+        self.assertEqual(world.Climate.Temperature, 30)
+        self.assertEqual(world.Climate.MaxTemp, 34)
+        self.assertEqual(world.Climate.Precipitation, 0)
+        self.assertEqual(world.Wind.Direction, 90)
+        self.assertEqual(world.Wind.SpeedInKm, 12)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(world.Multiplier, 1.0)
+        self.assertTrue(world.Modified)
+
+    def test_customize_without_default_preset_changes_nothing(self):
+        world = self.customized_world()
+        cheat = world.WeatherPreset
+        template = self.g.make_preset("Default__DA_WeatherPreset_Default", 30)
+        self.register("VoyageWeatherVolume", world)
+        self.register("VoyageWeatherPreset", template)
+        live = self.g.make_override(
+            "BP_WeatherVolumeActor_C /Game/Maps/VoyageWorld2.VoyageWorld2:"
+            "PersistentLevel.BP_WeatherVolumeActor_C_2147480001")
+        self.register("BP_WeatherVolumeActor_C", live)
+        ok, message = self.reset()
+        self.assertFalse(ok)
+        self.assertIn("Customize", message)
+        self.assertEqual(world.Priority, 99.0)
+        self.assertEqual(world.WeatherPreset.full_name, cheat.full_name)
+        self.assertFalse(world.Modified)
+        self.assertFalse(live.destroyed)
+
+    def test_default_preset_lookup_ignores_templates(self):
+        world = self.customized_world()
+        template = self.g.make_preset("Default__DA_WeatherPreset_Default", 99)
+        live = self.g.make_preset("DA_WeatherPreset_Default", 30)
+        self.register("VoyageWeatherVolume", world)
+        self.register("VoyageWeatherPreset", template, live)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertEqual(world.WeatherPreset.full_name, live.full_name)
+        self.assertEqual(world.Climate.Temperature, 30)
+
+    def test_other_presets_are_still_not_world_volumes(self):
+        world = self.customized_world()
+        rain = self.g.make_preset("DA_WeatherPreset_Rain", 10)
+        decoy = self.g.make_volume("WeatherVolume_C_UAID_CCCC_3", rain, 1e10, 99.0)
+        default = self.g.make_preset("DA_WeatherPreset_Default", 30)
+        self.register("VoyageWeatherVolume", world, decoy)
+        self.register("VoyageWeatherPreset", default)
+        ok, message = self.reset()
+        self.assertTrue(ok, message)
+        self.assertEqual(world.Priority, -1.0)
+        self.assertEqual(decoy.Priority, 99.0)
+        self.assertFalse(decoy.Modified)
+        self.assertEqual(decoy.WeatherPreset.full_name, rain.full_name)
 
 
 if __name__ == "__main__":
