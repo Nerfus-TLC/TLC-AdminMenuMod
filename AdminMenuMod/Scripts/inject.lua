@@ -276,6 +276,12 @@ local function setLabel(button, label)
     end
     log("[step] ButtonText:SetText")
     try("ButtonText:SetText", function() button.ButtonText:SetText(text) end)
+
+    -- Read back what the TextBlock holds now, so the log shows whether the label the
+    -- player sees took the new text.
+    try("ButtonText:GetText", function()
+        log("label on screen now: " .. tostring(button.ButtonText:GetText():ToString()))
+    end)
 end
 
 --[[ The click hook --------------------------------------------------------------------
