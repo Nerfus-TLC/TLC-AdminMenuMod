@@ -4,7 +4,7 @@ Opens The Last Caretaker's own built-in admin menu with **F1**, adds the Bulk Ba
 button the menu is missing, and adds a button that puts the game's own weather back after
 the menu's Weather page has changed it.
 
-**Works on Update 6 "The Jump"** (tested on build 0.8.5.653002, Unreal Engine 5.8.1).
+**Works on Update 6 "The Jump"** (tested on release build 0.10.0.653173, Unreal Engine 5.8.2).
 The mod is plain Lua and ships no cooked assets, so an engine update does not take it down.
 
 The game already contains a full admin panel. It just has no key bound to it. This mod
