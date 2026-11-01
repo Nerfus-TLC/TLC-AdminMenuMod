@@ -144,6 +144,22 @@ can simply be picked up and placed. Larger ones - Medium Battery and Bulk Batter
 them - cannot be carried at all: break them down with the **Dismantle Tool** for parts,
 then build them again from the in-game build menu.
 
+## If F1 does nothing
+
+Look for `ue4ss/UE4SS.log`. If it is not there, UE4SS never started, and the cause is
+almost always `dwmapi.dll`, the UE4SS loader. Without it the game starts as normal but
+loads no mods at all. It has to sit in `Voyage/Binaries/Win64/`, next to
+`VoyageSteam-Win64-Shipping.exe` and the `ue4ss/` folder. The usual ways it ends up
+somewhere else:
+
+* in the top `Voyage/` folder, next to `Voyage.exe`, instead of in `Binaries/Win64/`
+* in an extra subfolder that Windows' *Extract All* creates
+* left behind when the files are moved or copied by hand
+
+If the file is where it should be, check whether your antivirus has quarantined it. On
+Steam Deck or Proton, set the game's launch options to
+`WINEDLLOVERRIDES="dwmapi=n,b" %command%`.
+
 ## If F1 is taken
 
 If another mod has already bound F1, this mod does not take the key. `UE4SS.log` says so,
