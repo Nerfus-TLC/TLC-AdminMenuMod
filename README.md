@@ -94,14 +94,14 @@ crash the game is worse than a mod that does less, so those two are left out.
 ## Requirements
 
 **UE4SS**, a build that supports Unreal Engine 5.8. The `-with-UE4SS` archive ships the
-official build unmodified, so with that one there is nothing more to get.
+official **UE4SS v4.0.0** release unmodified, so with that one there is nothing more to get.
 
-With the mod-only archive, install UE4SS yourself first. Take the **experimental-latest**
-release from [RE-UE4SS releases](https://github.com/UE4SS-RE/RE-UE4SS/releases), not the
-stable release: only the experimental build knows Unreal Engine 5.8. Verified against
-commit `24b12662`, which reports itself as `v3.0.1 Beta #0` in `UE4SS.log` - the same
-version number as the old stable release, so go by the commit and the asset date, not
-the version string.
+With the mod-only archive, install UE4SS yourself first: the stable **v4.0.0** release or
+newer from [RE-UE4SS releases](https://github.com/UE4SS-RE/RE-UE4SS/releases). v4.0.0 is
+the first stable release that knows Unreal Engine 5.8 - the older stable v3.0.1 does not.
+The experimental build `24b12662` that versions 1.0.0 to 1.1.0 shipped with works too; it
+reports itself as `v3.0.1 Beta #0` in `UE4SS.log`, the same version number as the old
+stable release, so go by the commit and the asset date, not the version string.
 
 Check the release **asset** date rather than the tag date when judging how current a
 build is. The tag can be years older than the file.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 - 2026-11-27
+
+* The *with UE4SS* archive now ships **UE4SS v4.0.0**, the first stable UE4SS release that
+  supports Unreal Engine 5.8, with a run of crash fixes since the experimental build used
+  before. The mod itself is unchanged.
+* Tested on Update 7 "Code Connection" (beta build 0.11.0.655503) with UE4SS v4.0.0 and
+  with the earlier experimental build `24b12662`.
+* Since Update 7 the game asks once per game build whether to start with mods
+  ("Mods detected"). Select OK.
+
 ## 1.1.0 - 2026-10-11
 
 * **Reset Weather to Default.** A new button at the bottom of the admin menu's Weather
