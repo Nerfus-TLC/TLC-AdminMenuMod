@@ -7,7 +7,8 @@ the menu's Weather page has changed it.
 **Works on Update 7 "Code Connection"** (tested on beta build 0.11.0.655503, Unreal Engine 5.8)
 and on Update 6 "The Jump" (release build 0.10.0.653173). The mod is plain Lua and ships no
 cooked assets, so an engine update does not take it down. Since Update 7 the game shows a
-"Mods detected" notice at start-up whenever UE4SS is installed - select OK to play with mods.
+"Mods detected" notice the first time each new game build starts with UE4SS installed -
+select OK to play with mods. It remembers the answer until the next game update.
 
 The game already contains a full admin panel. It just has no key bound to it. This mod
 binds one, and fills in a button the developers left out.
